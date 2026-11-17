@@ -1,1 +1,67 @@
+name: Build Tweak
 
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+    env:
+      THEOS: ${{ github.workspace }}/theos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Theos
+        run: |
+          set -e
+          git clone --recursive https://github.com/theos/theos.git "$THEOS"
+          git -C "$THEOS" submodule update --init --recursive
+
+      - name: Setup Theos env
+        run: |
+          set -e
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+          # 下载 iOS SDK（编译必须）
+          mkdir -p "$THEOS/sdks"
+          curl -L -o /tmp/sdk.tar.gz \
+            https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
+          tar -xzf /tmp/sdk.tar.gz -C /tmp
+          ls /tmp/sdks-master | head
+          # 优先用 16.5，没有就用最新的
+          if [ -d /tmp/sdks-master/iPhoneOS16.5.sdk ]; then
+            cp -r /tmp/sdks-master/iPhoneOS16.5.sdk "$THEOS/sdks/"
+          else
+            cp -r "$(ls -d /tmp/sdks-master/iPhoneOS*.sdk | sort -V | tail -1)" "$THEOS/sdks/"
+          fi
+          ls "$THEOS/sdks"
+
+      - name: Install build deps
+        run: |
+          set -e
+          brew install ldid dpkg xz
+
+      - name: Show env
+        run: |
+          echo "THEOS=$THEOS"
+          echo "PATH=$PATH"
+          which ldid dpkg-deb clang
+
+      - name: Build package
+        run: |
+          set -e
+          make package FINALPACKAGE=1 DEBUG=0
+
+      - name: List products
+        run: ls -la packages/ || true
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: LabelPatch-deb
+          path: packages/*.deb
+          if-no-files-found: error
+          retention-days: 30

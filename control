@@ -1,0 +1,9 @@
+Package: com.custom.labelpatch
+Name: LabelPatch
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: 本地修改九号出行 InfoCell 内 UILabel 文字（序列号/车架号），仅供自娱自乐
+Maintainer: dev
+Author: dev
+Section: Tweaks
+Depends: mobilesubstrate
